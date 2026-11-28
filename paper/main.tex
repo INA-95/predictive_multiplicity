@@ -1,0 +1,96 @@
+\documentclass{article}
+\usepackage{amsmath,amssymb,booktabs}
+\usepackage{icml2024}
+
+\icmltitlerunning{Model Class and Feature Availability in Predictive Multiplicity}
+
+\begin{document}
+
+\twocolumn[
+\icmltitle{Model Class and Feature Availability in Predictive Multiplicity}
+
+\begin{icmlauthorlist}
+\icmlauthor{Author Name}{course}
+\end{icmlauthorlist}
+\icmlaffiliation{course}{Course Project}
+\vskip 0.3in
+]
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+Predictive multiplicity occurs when classifiers with similar accuracy disagree on individual predictions. We enumerate prediction patterns in two synthetic experiments and a feature-masking experiment on 6,172 COMPAS records. On XOR, expanding the model family from linear classifiers to depth-two decision trees reduces the number of optimal patterns from four to one. In a separate synthetic experiment with deterministic labels, withholding a relevant feature leaves two optimal tree patterns that disagree on 40\% of the records. In COMPAS, adding a prior-offense indicator raises in-sample optimal accuracy from 58.07\% to 59.95\% and raises ambiguity among patterns within 0.5 percentage points of the optimum from 1.04\% to 53.09\%. The experiments show how feature availability can change individual disagreement even when aggregate accuracy improves.
+\end{abstract}
+
+\section{Introduction}
+
+Models with similar aggregate error can disagree on which individuals receive a positive prediction \citep{marx2020}. We examine two ways this can happen. A restricted model class may yield several equally good approximations to a rule that a richer class can express exactly. Alternatively, an omitted feature can make examples with different labels look identical to any classifier that uses the observed inputs. We isolate these mechanisms in synthetic examples, then measure how adding one recorded feature changes disagreement in COMPAS.
+
+\section{Evaluation}
+
+For a sample of \(n\) records, let \(p\) denote the vector of hard predictions produced by a classifier on those records. We count each distinct vector once. Let \(a(p)\) be its sample accuracy, \(a^\star\) the highest accuracy within the condition, and \(p^\star\) an optimal reference pattern. For an accuracy tolerance \(\epsilon\), define
+\[
+\mathcal P_\epsilon = \{p : a^\star - a(p) \leq \epsilon\}.
+\]
+Following \citet{marx2020}, ambiguity and discrepancy measure disagreement with the reference:
+\begin{align*}
+\operatorname{Amb}(\epsilon)
+&= \frac{1}{n}\sum_{i=1}^{n}
+   \mathbf{1}\{\exists p\in\mathcal P_\epsilon:p_i\ne p_i^\star\},\\
+\operatorname{Disc}(\epsilon)
+&= \max_{p\in\mathcal P_\epsilon}
+   \frac{1}{n}\sum_{i=1}^{n}\mathbf{1}\{p_i\ne p_i^\star\}.
+\end{align*}
+Ambiguity counts every record whose prediction can change across candidates. Discrepancy gives the largest fraction changed by a single candidate.
+
+For two binary features, linear classifiers can realize all 16 patterns except the two diagonal patterns. Binary decision trees of depth at most two can realize all 16. For the feature-masking experiments, we enumerate tree predictions by combining constant leaf predictions with the predictions from all allowable binary splits, stopping at depth two. Identical input vectors are scored using their label counts, and disagreement is weighted by the number of records in each group.
+
+\section{Synthetic Experiments}
+
+\subsection{Changing the model class}
+
+We use the four binary input combinations and set \(y=x_1\oplus x_2\). The best linear classifiers each predict three of four labels correctly. Four distinct patterns attain that score, one for each possible location of the error. Relative to the first optimal pattern, ambiguity is 100\% and discrepancy is 50\%. A depth-two tree can express XOR exactly, yielding one optimal pattern on the four records and zero ambiguity and discrepancy.
+
+\subsection{Withholding a relevant feature}
+
+We use five feature triples: \((0,0,0)\), \((0,0,1)\), \((0,1,1)\), \((1,0,1)\), and \((1,1,0)\). Labels are assigned deterministically as \(y=x_3\). We hold these records, labels, and the maximum tree depth fixed and vary whether \(x_3\) is available.
+
+With \(x_3\) withheld, the first two records share the same observed input and have opposite labels. Any deterministic classifier using only \((x_1,x_2)\) must miss at least one of them. Two depth-two tree patterns attain the resulting upper bound of \(4/5\), one predicting 0 for both records and one predicting 1 for both. They agree on the other three records, so ambiguity and discrepancy are both 40\%. With \(x_3\) available, a single split predicts all five labels correctly. Every optimal tree then produces the same sample predictions, and both measures are zero.
+
+\section{COMPAS Feature-Masking Experiment}
+
+We use 6,172 records from the project's processed COMPAS dataset and use the recorded \texttt{arrest} field as the label. In both conditions we enumerate depth-two-or-shallower decision trees. The baseline features indicate age at most 25 and at least one juvenile felony. The expanded condition adds an indicator for at least one prior offense. Tolerances are measured relative to each condition's own optimum. The reference is the lexicographically first optimal pattern in sorted input-group order.
+
+\begin{table}[t]
+\centering
+\caption{COMPAS prediction patterns and percentage disagreement by accuracy tolerance. Best sample accuracy is 58.07\% without the prior-offense feature and 59.95\% with it.}
+\label{tab:compas}
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Prior feature & \(\epsilon\) (pp) & Patterns & Amb. & Disc.\\
+\midrule
+Withheld & 0   & 1 & 0.00 & 0.00\\
+         & 0.5 & 2 & 1.04 & 1.04\\
+         & 1   & 3 & 3.37 & 2.33\\
+         & 2   & 4 & 3.37 & 3.37\\
+\midrule
+Included & 0   & 1 & 0.00 & 0.00\\
+         & 0.5 & 3 & 53.09 & 52.06\\
+         & 1   & 4 & 55.43 & 52.06\\
+         & 2   & 9 & 65.42 & 62.05\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:compas} shows one exactly optimal pattern in each condition. With a tolerance of 0.5 percentage points, adding the feature increases ambiguity from 1.04\% to 53.09\%. The added feature allows a tree to distinguish a group of 3,213 records with at least one prior offense and both baseline indicators equal to zero. The group contains 1,621 positive labels and 1,592 negative labels. Reversing the group's prediction changes 3,213 predictions while costing 29 correct classifications, about 0.47 percentage points of sample accuracy.
+
+\section{Discussion and Limitations}
+
+The deterministic synthetic example establishes that a missing feature can leave multiple exactly optimal prediction patterns, even when the model class can represent every mapping from the available binary inputs. The COMPAS experiment illustrates a complementary result: adding a feature can create a large group whose prediction is sensitive to model choice when its observed labels are nearly balanced. In this sample, accuracy and near-optimal disagreement rise together.
+
+The COMPAS comparison describes one feature addition, one maximum tree depth, and the observed labels of a single processed sample. Its accuracy and disagreement are measured on the same records used to identify the optimal patterns. The experiment therefore leaves out-of-sample behavior and the contribution of label noise unresolved.
+
+\bibliography{references}
+\bibliographystyle{icml2024}
+
+\end{document}
